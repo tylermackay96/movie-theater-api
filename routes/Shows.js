@@ -43,34 +43,59 @@ showRouter.get("/genre/:genreName", async (req, res) => {
 });
 
 // PUT update rating of a show that has been watched
-showRouter.put("/:showId/rating", async (req, res) => {
-  try {
-    const show = await Show.findOne({ where: { id: req.params.showId } });
-    if (!show) {
-      throw new Error("Show not found");
-    } else {
+showRouter.put("/:showId/rating", [
+    body("rating")
+      .trim()
+      .not()
+      .isEmpty()
+      .withMessage("Rating cannot be empty")
+      .not()
+      .contains(" ")
+      .withMessage("Rating cannot contain whitespace")
+  ], async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(422).send({ errors: errors.array() });
+      }
+      const show = await Show.findOne({ where: { id: req.params.showId } });
+      if (!show) {
+        throw new Error("Show not found");
+      }
       const updatedShow = await show.update({ rating: req.body.rating });
       res.status(200).send({ updatedShow });
+    } catch (error) {
+      res.status(500).send({ err: error.message });
     }
-  } catch (error) {
-    res.status(500).send({ err: error.message });
-  }
-});
+  });
 
-// PUT update the status of a show
-showRouter.put("/:showId/status", async (req, res) => {
-  try {
-    const show = await Show.findOne({ where: { id: req.params.showId } });
-    if (!show) {
-      throw new Error("Show not found");
-    } else {
-      const updatedShow = await show.update({ status: req.body.status });
-      res.status(200).send({ updatedShow });
+// PUT update the status of a show - now with server side verification added 
+showRouter.put("/:showId/status", [
+    body("status")
+      .not()
+      .isEmpty()
+      .withMessage("Status cannot be empty")
+      .trim()
+      .isLength({ min: 5, max: 25 })
+      .withMessage("Status must be between 5 and 25 characters"),
+  ], async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+  
+      const show = await Show.findOne({ where: { id: req.params.showId } });
+      if (!show) {
+        throw new Error("Show not found");
+      } else {
+        const updatedShow = await show.update({ status: req.body.status });
+        res.status(200).send({ updatedShow });
+      }
+    } catch (error) {
+      res.status(500).send({ err: error.message });
     }
-  } catch (error) {
-    res.status(500).send({ err: error.message });
-  }
-});
+  });
 
 // DELETE a show
 showRouter.delete("/:showId", async (req, res) => {
